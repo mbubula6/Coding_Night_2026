@@ -45,3 +45,5 @@ You can preview the production build with `npm run preview`.
 ## Things to add
 
 Definitely chatling but also own chatbot, give it dataset to know where things are and stuff like that
+
+Also ngrok or smth to make project public for chatling to know where things are
