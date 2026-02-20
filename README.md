@@ -46,4 +46,8 @@ You can preview the production build with `npm run preview`.
 
 Definitely chatling but also own chatbot, give it dataset to know where things are and stuff like that
 
-Also ngrok or smth to make project public for chatling to know where things are
+
+Install: npm install -g ngrok
+Run your dev server: npm run dev
+In another terminal: npx ngrok http 5173 (or whatever port SvelteKit is using) + --host-header=rewrite (można)
+It works like shit (only use for chatling to learn)
