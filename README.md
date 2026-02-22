@@ -51,3 +51,19 @@ Install: npm install -g ngrok
 Run your dev server: npm run dev
 In another terminal: npx ngrok http 5173 (or whatever port SvelteKit is using) + --host-header=rewrite (można)
 It works like shit (only use for chatling to learn)
+
+
+## To use on mobile 
+```
+npm run dev -- --host
+npm run cap:sync
+npm run cap:run
+```
+(jak nie działa ale powinno)
+
+
+Change	                                Action needed
+Svelte pages, CSS, server logic	        Nothing — auto-updates
+capacitor.config.ts	                    npm run cap:sync + reinstall
+New Capacitor plugin	                npm run cap:sync + reinstall
+Android manifest / native code	        npm run cap:sync + reinstall
