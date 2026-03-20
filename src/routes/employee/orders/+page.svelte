@@ -1,8 +1,15 @@
 <script lang="ts">
-	let { data } = $props();
-	let columns = $derived(data.items.length > 0 ? Object.keys(data.items[0]) : []);
+	import { enhance } from '$app/forms';
 
-	function formatDateTime(value: string): string {
+	let { data } = $props();
+	let expandedId = $state<number | null>(null);
+
+	function toggleExpand(id: number) {
+		expandedId = expandedId === id ? null : id;
+	}
+
+	function formatDateTime(value: string | null): string {
+		if (!value) return '—';
 		const date = new Date(value);
 		if (Number.isNaN(date.getTime())) return value;
 		const yyyy = date.getFullYear();
@@ -12,46 +19,12 @@
 		const min = String(date.getMinutes()).padStart(2, '0');
 		return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
 	}
-
-	function formatDish(item: Record<string, unknown>): string {
-		const name = item.name != null ? String(item.name) : '';
-		const prep = item.prep_time_minutes != null ? String(item.prep_time_minutes) : '';
-		if (name && prep) return `${name} (${prep} min)`;
-		if (name) return name;
-		if (prep) return `${prep} min`;
-		return JSON.stringify(item);
-	}
-
-	function formatCellValue(column: string, value: unknown): string {
-		if (value == null) return '—';
-		if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-			if (typeof value === 'string' && ['created_at', 'planned_pickup', 'received_at'].includes(column)) {
-				return formatDateTime(value);
-			}
-			return String(value);
-		}
-		if (Array.isArray(value)) {
-			if (value.length === 0) return '—';
-			return value
-				.map((item) => {
-					if (item && typeof item === 'object' && 'name' in item) {
-						return formatDish(item as Record<string, unknown>);
-					}
-					return typeof item === 'object' ? JSON.stringify(item) : String(item);
-				})
-				.join(', ');
-		}
-		if (typeof value === 'object' && value && 'name' in value) {
-			return formatDish(value as Record<string, unknown>);
-		}
-		return JSON.stringify(value);
-	}
 </script>
 
 <div class="space-y-6">
 	<div>
-		<h1 class="text-3xl font-bold tracking-tight">Orders</h1>
-		<p class="mt-1 text-gray-500 dark:text-gray-400">View and manage all orders</p>
+		<h1 class="text-3xl font-bold tracking-tight">Available Orders</h1>
+		<p class="mt-1 text-gray-500 dark:text-gray-400">Unclaimed orders waiting for a worker. Click a row to see required products.</p>
 	</div>
 
 	{#if data.error}
@@ -60,36 +33,97 @@
 		</div>
 	{/if}
 
-	{#if data.items.length > 0}
-		<div class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
-			<div class="overflow-x-auto">
-				<table class="w-full text-sm text-left">
-					<thead class="bg-gray-50 dark:bg-gray-800/50 text-xs uppercase text-gray-500 dark:text-gray-400">
-						<tr>
-							{#each columns as col}
-								<th class="px-4 py-3 font-medium">{col}</th>
-							{/each}
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-						{#each data.items as row}
-							<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
-								{#each columns as col}
-									<td class="px-4 py-3 text-gray-700 dark:text-gray-300">{formatCellValue(col, (row as Record<string, unknown>)[col])}</td>
-								{/each}
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
+	{#if data.orders.length > 0}
+		<div class="space-y-3">
+			{#each data.orders as order (order.id)}
+				<div class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden transition-all duration-200 hover:shadow-md">
+					<!-- Order header row -->
+					<button
+						type="button"
+						onclick={() => toggleExpand(order.id)}
+						class="w-full text-left px-5 py-4 flex items-center justify-between gap-4 cursor-pointer"
+					>
+						<div class="flex items-center gap-4 min-w-0">
+							<div class="shrink-0 w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+								<svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+								</svg>
+							</div>
+							<div class="min-w-0">
+								<p class="font-semibold text-gray-900 dark:text-gray-100 truncate">{order.dish_name}</p>
+								<p class="text-xs text-gray-500 dark:text-gray-400">
+									Order #{order.id}
+									{#if order.prep_time_minutes}
+										&middot; {order.prep_time_minutes} min prep
+									{/if}
+								</p>
+							</div>
+						</div>
+						<div class="flex items-center gap-3 shrink-0">
+							<div class="hidden sm:block text-right text-xs text-gray-500 dark:text-gray-400">
+								<p>Created: {formatDateTime(order.created_at)}</p>
+								{#if order.planned_pickup}
+									<p>Pickup: {formatDateTime(order.planned_pickup)}</p>
+								{/if}
+							</div>
+							<svg
+								class="w-5 h-5 text-gray-400 transition-transform duration-200 {expandedId === order.id ? 'rotate-180' : ''}"
+								fill="none" stroke="currentColor" viewBox="0 0 24 24"
+							>
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+							</svg>
+						</div>
+					</button>
+
+					<!-- Expanded details -->
+					{#if expandedId === order.id}
+						<div class="border-t border-gray-100 dark:border-gray-800 px-5 py-4 bg-gray-50/50 dark:bg-gray-800/30 space-y-4">
+							<div class="sm:hidden text-xs text-gray-500 dark:text-gray-400 space-y-1">
+								<p>Created: {formatDateTime(order.created_at)}</p>
+								{#if order.planned_pickup}
+									<p>Pickup: {formatDateTime(order.planned_pickup)}</p>
+								{/if}
+							</div>
+
+							<div>
+								<h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Required Products</h4>
+								{#if order.products.length > 0}
+									<div class="flex flex-wrap gap-2">
+										{#each order.products as product}
+											<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
+												{product}
+											</span>
+										{/each}
+									</div>
+								{:else}
+									<p class="text-sm text-gray-400 dark:text-gray-500">No products linked to this dish.</p>
+								{/if}
+							</div>
+
+							<!-- <form method="POST" action="?/claim" use:enhance>
+								<input type="hidden" name="orderId" value={order.id} />
+								<button
+									type="submit"
+									class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-medium rounded-xl transition-all duration-200 shadow-sm hover:shadow cursor-pointer"
+								>
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+									</svg>
+									Claim this order
+								</button>
+							</form> -->
+						</div>
+					{/if}
+				</div>
+			{/each}
 		</div>
-	{:else}
+	{:else if !data.error}
 		<div class="text-center py-16 bg-white dark:bg-gray-900 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700">
 			<svg class="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7" />
 			</svg>
-			<p class="text-lg font-medium text-gray-400 dark:text-gray-500">No orders yet</p>
-			<p class="text-sm mt-1 text-gray-300 dark:text-gray-600">Orders will appear here once they're created.</p>
+			<p class="text-lg font-medium text-gray-400 dark:text-gray-500">All caught up!</p>
+			<p class="text-sm mt-1 text-gray-300 dark:text-gray-600">No unclaimed orders right now.</p>
 		</div>
 	{/if}
 </div>
