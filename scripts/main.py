@@ -2,6 +2,7 @@ import pandas as pd
 from supabase import create_client
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
+import numpy as np
 
 url = "https://euinlbrrdvzqeaniakyo.supabase.co"
 key = ""
@@ -85,14 +86,47 @@ user_info = get_user_data(target_user_id)
 preferences = get_user_preferences(target_user_id)
 # print(preferences)
 df = prepare_dataframe(user_info,preferences)
-print(df)
+# print(df.columns.values)
 
-# SEGMENTING DATA (BAGGING)
+# PREPARING DATA
+# ENCODING STRING VALUES
+pd.set_option('display.max_columns', None)
 
-x = df.drop('dish_id', axis=1)
+X = df.drop('dish_id', axis=1)
+X = df.drop('created_at', axis=1)
 y = df['dish_id']
 
-x_train, x_test, y_train, y_test = train_test_split(
-    x, y, test_size=0.2, random_state=42
+# BAGGING
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
 )
 
+# PREDICTIONS
+# print(X_train, y_train)
+# print(X_test.shape, y_test.shape)
+
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+
+accuracy = model.score(X_test, y_test)
+print(f"Accuracy: {accuracy:.2%}")
+
+# Recommendations
+
+probs = model.predict_proba(X_test)
+
+user_index = 0
+user_probs = probs[user_index]
+
+recommendations = pd.DataFrame({
+    'dish_id': model.classes_,
+    'probability': user_probs
+})
+
+recommendations = recommendations.sort_values(by='probability', ascending=False)
+
+recommendations['chance_%'] = (recommendations['probability'] * 100).round(2)
+
+print(f"--- Top 5 rekomendacji dla użytkownika (Index: {user_index}) ---")
+print(recommendations[['dish_id', 'chance_%']].head(5))
