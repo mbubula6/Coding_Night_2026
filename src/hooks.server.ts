@@ -1,6 +1,9 @@
 import { createServerClient } from '@supabase/ssr';
+import { redirect } from '@sveltejs/kit';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_KEY } from '$env/static/public';
 import type { Handle } from '@sveltejs/kit';
+
+const PUBLIC_PATHS = ['/login', '/register', '/auth/callback'];
 
 export const handle: Handle = async ({ event, resolve }) => {
     event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_KEY, {
@@ -29,6 +32,12 @@ export const handle: Handle = async ({ event, resolve }) => {
         event.locals.user = error ? null : user;
     } else {
         event.locals.user = null;
+    }
+
+    const path = event.url.pathname;
+    const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + '/')) || path.startsWith('/api/');
+    if (!event.locals.user && !isPublic) {
+        throw redirect(303, '/login');
     }
 
     return resolve(event, {
