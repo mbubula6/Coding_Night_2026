@@ -53,7 +53,7 @@
 	let brandName = $derived(
 		isEmployeeSection ? 'Staff Panel' :
 		isClientSection ? 'My Portal' :
-		'BlogApp'
+		'/login'
 	);
 
 	let brandClasses = $derived(
