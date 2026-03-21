@@ -62,6 +62,7 @@ export const load: PageServerLoad = async ({ locals, depends, url }) => {
 		.from('client_order')
 		.select('id, dish(name), created_at, is_done')
 		.eq('id_client', locals.user.id)
+		.is('received_at', null)
 		.order('created_at', { ascending: false })
 		.limit(10);
 

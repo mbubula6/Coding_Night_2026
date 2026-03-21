@@ -78,7 +78,7 @@
 	</div>
 
 	<!-- Active orders (in progress) -->
-	<div>
+	<!-- <div>
 		<h2 class="text-xl font-bold tracking-tight mb-3">Active orders</h2>
 		{#if data.activeOrdersError}
 			<div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-xl text-sm">
@@ -116,11 +116,11 @@
 				No active orders. When you place an order that isn't finished yet, it will show here.
 			</div>
 		{/if}
-	</div>
+	</div> -->
 
 	<!-- Latest ordered foods -->
 	<div>
-		<h2 class="text-xl font-bold tracking-tight mb-3">Latest ordered foods</h2>
+		<h2 class="text-xl font-bold tracking-tight mb-3">Active orders</h2>
 		{#if !data.pickupQrEnabled}
 			<p class="mb-3 text-xs text-amber-800 dark:text-amber-200/90 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl px-3 py-2">
 				Pickup QR codes are off until you set <code class="rounded bg-amber-100 dark:bg-amber-900/50 px-1">ORDER_PICKUP_SECRET</code> (at least 16 characters) in

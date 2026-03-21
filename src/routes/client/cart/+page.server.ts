@@ -47,20 +47,19 @@ export const actions: Actions = {
 
         const { data: weatherRows, error: weatherErr } = await locals.supabase
             .from('weather')
-            .select('id, weather');
+            .select('id');
 
         if (weatherErr) {
             console.error('Error loading weather options:', weatherErr.message);
         }
 
-        const weatherOptions = (weatherRows ?? []).filter(
-            (r: { weather?: string | null }) => r.weather != null && String(r.weather).trim() !== ''
-        );
+        const weatherOptions = weatherRows ?? [];
         const picked =
             weatherOptions.length > 0
                 ? weatherOptions[Math.floor(Math.random() * weatherOptions.length)]
                 : null;
-        const weather = picked?.weather != null ? String(picked.weather) : null;
+        // `client_order.weather` now stores the weather row ID (bigint FK-like value).
+        const weather = picked?.id ?? null;
         /** No longer from sensor; kept null unless you add columns to `weather` table. */
         const tempCelsius: number | null = null;
         const humidity: number | null = null;
