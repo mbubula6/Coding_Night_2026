@@ -103,7 +103,7 @@
 <div class="max-w-md mx-auto space-y-6">
     <div class="text-center">
         <h1 class="text-3xl font-bold tracking-tight">Create an account</h1>
-        <p class="mt-1 text-gray-500 dark:text-gray-400">Join BlogApp and start posting</p>
+        <p class="mt-1 text-gray-500 dark:text-gray-400">Create an account to continue</p>
     </div>
 
     <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 p-6 space-y-5">

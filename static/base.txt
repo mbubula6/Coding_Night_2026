@@ -1,0 +1,136 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.BlogPost (
+  id integer NOT NULL DEFAULT nextval('"BlogPost_id_seq"'::regclass),
+  title text NOT NULL,
+  text text NOT NULL,
+  createdAt timestamp without time zone NOT NULL DEFAULT now(),
+  user_display_name text,
+  user_id uuid DEFAULT auth.uid(),
+  id_do_testu integer,
+  CONSTRAINT BlogPost_pkey PRIMARY KEY (id),
+  CONSTRAINT BlogPost_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.client_order (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  id_client uuid NOT NULL DEFAULT auth.uid(),
+  id_dish bigint NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT (now() AT TIME ZONE 'utc'::text),
+  planned_pickup timestamp with time zone NOT NULL DEFAULT (now() AT TIME ZONE 'utc'::text),
+  id_worker bigint,
+  is_done bigint,
+  received_at timestamp with time zone,
+  id_plate bigint,
+  weather bigint,
+  temp_celsius double precision,
+  humidity double precision,
+  CONSTRAINT client_order_pkey PRIMARY KEY (id),
+  CONSTRAINT client_order_id_dish_fkey FOREIGN KEY (id_dish) REFERENCES public.dish(id),
+  CONSTRAINT client_order_id_worker_fkey FOREIGN KEY (id_worker) REFERENCES public.worker(id),
+  CONSTRAINT client_order_id_plate_fkey FOREIGN KEY (id_plate) REFERENCES public.plates(id),
+  CONSTRAINT client_order_id_client_fkey1 FOREIGN KEY (id_client) REFERENCES public.user_data(id_user),
+  CONSTRAINT client_order_weather_fkey FOREIGN KEY (weather) REFERENCES public.weather(id)
+);
+CREATE TABLE public.cuisine (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  cuisine text,
+  CONSTRAINT cuisine_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.dish (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  name character varying NOT NULL,
+  prep_time_minutes bigint NOT NULL,
+  CONSTRAINT dish_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.dish_tag (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  id_dish bigint,
+  tag text,
+  CONSTRAINT dish_tag_pkey PRIMARY KEY (id),
+  CONSTRAINT dish_tag_id_dish_fkey FOREIGN KEY (id_dish) REFERENCES public.dish(id)
+);
+CREATE TABLE public.link_dish_recipe (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  id_dish bigint,
+  id_product bigint,
+  CONSTRAINT link_dish_recipe_pkey PRIMARY KEY (id),
+  CONSTRAINT link_dish_recipe_id_dish_fkey FOREIGN KEY (id_dish) REFERENCES public.dish(id),
+  CONSTRAINT link_dish_recipe_id_product_fkey FOREIGN KEY (id_product) REFERENCES public.product(id)
+);
+CREATE TABLE public.plates (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  available bigint,
+  tag character varying,
+  CONSTRAINT plates_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.product (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  name character varying,
+  quantity bigint,
+  CONSTRAINT product_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.product_order (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  id_product bigint,
+  quantity bigint,
+  status USER-DEFINED NOT NULL,
+  CONSTRAINT product_order_pkey PRIMARY KEY (id),
+  CONSTRAINT product_order_id_product_fkey FOREIGN KEY (id_product) REFERENCES public.product(id)
+);
+CREATE TABLE public.temperature_and_humidity (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  temperature double precision,
+  humidity double precision,
+  CONSTRAINT temperature_and_humidity_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.user_data (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  id_user uuid NOT NULL DEFAULT auth.uid() UNIQUE,
+  is_worker bigint,
+  is_teacher bigint,
+  is_student bigint,
+  class bigint,
+  class_prefix character varying,
+  gender bigint,
+  is_city bigint,
+  CONSTRAINT user_data_pkey PRIMARY KEY (id),
+  CONSTRAINT user_data_id_user_fkey FOREIGN KEY (id_user) REFERENCES auth.users(id)
+);
+CREATE TABLE public.user_preferences (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  id_user uuid NOT NULL DEFAULT auth.uid() UNIQUE,
+  is_vegetarian bigint,
+  is_vegan bigint,
+  is_nut_allergy bigint,
+  is_gluten_allergy bigint,
+  is_shellfish_allergy bigint,
+  is_dairy_allergy bigint,
+  spice_tolerance bigint,
+  sweetness_preference bigint,
+  warm bigint,
+  cold bigint,
+  with_drink bigint,
+  preferred_cuisine bigint,
+  CONSTRAINT user_preferences_pkey PRIMARY KEY (id),
+  CONSTRAINT user_preferences_id_user_fkey1 FOREIGN KEY (id_user) REFERENCES public.user_data(id_user)
+);
+CREATE TABLE public.wagony (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  czy_na_bocznicy integer,
+  ostatnia_zmiana timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT wagony_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.weather (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  weather text,
+  CONSTRAINT weather_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.worker (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  id_user uuid NOT NULL DEFAULT auth.uid() UNIQUE,
+  CONSTRAINT worker_pkey PRIMARY KEY (id),
+  CONSTRAINT worker_id_user_fkey FOREIGN KEY (id_user) REFERENCES public.user_data(id_user)
+);
