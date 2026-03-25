@@ -6,7 +6,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 
     const { data, error } = await locals.supabase
         .from('dish')
-        .select('id, name')
+        .select('id, name, link_dish_recipe(product(id, quantity))')
         .order('name', { ascending: true });
 
     if (error) {
@@ -14,7 +14,14 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
         return { dishes: [] };
     }
 
-    return { dishes: data ?? [] };
+    const available = (data ?? []).filter((d: any) => {
+        const links = (d.link_dish_recipe ?? []) as any[];
+        return links.every(
+            (lr: any) => lr.product?.quantity != null && Number(lr.product.quantity) > 0
+        );
+    }).map((d: any) => ({ id: d.id, name: d.name }));
+
+    return { dishes: available };
 };
 
 export const actions: Actions = {
@@ -33,24 +40,59 @@ export const actions: Actions = {
             return fail(400, { error: 'Cart is empty' });
         }
 
+        const uniqueRequestedIds = [...new Set(dishIds)];
+        const dishCounts = new Map<number, number>();
+        for (const id of dishIds) dishCounts.set(id, (dishCounts.get(id) ?? 0) + 1);
+
+        const { data: dishAvail } = await locals.supabase
+            .from('dish')
+            .select('id, name, link_dish_recipe(product(id, quantity))')
+            .in('id', uniqueRequestedIds);
+
+        const insufficientDishes: string[] = [];
+        for (const d of (dishAvail ?? []) as any[]) {
+            const links = (d.link_dish_recipe ?? []) as any[];
+            const quantities = links.map(
+                (lr: any) => lr.product?.quantity != null ? Number(lr.product.quantity) : 0
+            );
+            const maxOrderable = quantities.length > 0 ? Math.min(...quantities) : 0;
+            const requested = dishCounts.get(d.id) ?? 0;
+            if (requested > maxOrderable) {
+                insufficientDishes.push(
+                    `${d.name ?? '#' + d.id} (requested ${requested}, only ${maxOrderable} available)`
+                );
+            }
+        }
+
+        if (insufficientDishes.length > 0) {
+            return fail(400, {
+                error: `Not enough stock: ${insufficientDishes.join('; ')}`
+            });
+        }
+
         const pickupDate = new Date(plannedPickup);
         if (Number.isNaN(pickupDate.getTime())) {
             return fail(400, { error: 'Invalid pickup time' });
         }
 
-        const { data: weatherRow } = await locals.supabase
-            .from('temperature_and_humidity')
-            .select('temperature, humidity')
-            .order('id', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+        const { data: weatherRows, error: weatherErr } = await locals.supabase
+            .from('weather')
+            .select('id');
 
-        const weather = weatherRow
-            ? `${weatherRow.temperature ?? ''}°C / ${weatherRow.humidity ?? ''}%`
-            : null;
-        const tempCelsius = weatherRow?.temperature != null
-            ? Math.round(Number(weatherRow.temperature))
-            : null;
+        if (weatherErr) {
+            console.error('Error loading weather options:', weatherErr.message);
+        }
+
+        const weatherOptions = weatherRows ?? [];
+        const picked =
+            weatherOptions.length > 0
+                ? weatherOptions[Math.floor(Math.random() * weatherOptions.length)]
+                : null;
+        // `client_order.weather` now stores the weather row ID (bigint FK-like value).
+        const weather = picked?.id ?? null;
+        /** No longer from sensor; kept null unless you add columns to `weather` table. */
+        const tempCelsius: number | null = null;
+        const humidity: number | null = null;
 
         const now = new Date().toISOString();
 
@@ -75,7 +117,7 @@ export const actions: Actions = {
             is_done: 0,
             weather,
             temp_celsius: tempCelsius,
-            humidity: weatherRow?.humidity ?? null
+            humidity
         }));
 
         const { error } = await locals.supabase
@@ -85,6 +127,60 @@ export const actions: Actions = {
         if (error) {
             console.error('Error placing orders:', error.message);
             return fail(500, { error: error.message });
+        }
+
+        // --- Decrement product quantities for each ordered dish ---
+        const { data: recipeLinks } = await locals.supabase
+            .from('link_dish_recipe')
+            .select('id_dish, id_product')
+            .in('id_dish', uniqueRequestedIds);
+
+        if (recipeLinks && recipeLinks.length > 0) {
+            const productDecrements = new Map<number, number>();
+            for (const link of recipeLinks) {
+                const dishQty = dishCounts.get(link.id_dish) ?? 0;
+                productDecrements.set(
+                    link.id_product,
+                    (productDecrements.get(link.id_product) ?? 0) + dishQty
+                );
+            }
+
+            const productIds = [...productDecrements.keys()];
+            const { data: products } = await locals.supabase
+                .from('product')
+                .select('id, quantity')
+                .in('id', productIds);
+
+            if (products) {
+                for (const product of products) {
+                    const decrement = productDecrements.get(product.id) ?? 0;
+                    const newQty = Math.max(0, (product.quantity ?? 0) - decrement);
+                    await locals.supabase
+                        .from('product')
+                        .update({ quantity: newQty })
+                        .eq('id', product.id);
+
+                    // Auto-create product_order if quantity drops below 10
+                    if (newQty < 10) {
+                        const { data: existingOrder } = await locals.supabase
+                            .from('product_order')
+                            .select('id')
+                            .eq('id_product', product.id)
+                            .in('status', ['suggested', 'accepted', 'in_progress'])
+                            .maybeSingle();
+
+                        if (!existingOrder) {
+                            await locals.supabase
+                                .from('product_order')
+                                .insert({
+                                    id_product: product.id,
+                                    quantity: 50,
+                                    status: 'suggested'
+                                });
+                        }
+                    }
+                }
+            }
         }
 
         return { success: true, count: rows.length };

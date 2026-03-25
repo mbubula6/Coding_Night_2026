@@ -1,194 +1,174 @@
-# sv
+# SmartCanteen
+Project for hackathon Coding Night 2026 
+Role-based food ordering platform built with SvelteKit + Supabase.
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+This project is designed for a canteen workflow with two user experiences:
+- Client: browse dishes, place orders, track status, and collect ready meals with QR pickup.
+- Employee: manage incoming orders, monitor performance, and verify pickup tickets.
 
-## Creating a project
+The app includes real-time data refresh, role-based routing, inventory-aware ordering, and Android support through Capacitor.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Recruiter Snapshot
 
-```sh
-# create a new project
-npx sv create my-app
+If you are reviewing this repository as a hiring manager or recruiter, the most relevant points are:
+- End-to-end full-stack ownership in one codebase (UI, server logic, auth, DB integration).
+- Real business rules implemented: stock-aware ordering, worker/client separation, pickup verification.
+- Security-minded patterns: signed pickup tokens, server-side auth checks, protected routes.
+- Production-style architecture with reusable server helpers and typed SvelteKit routes.
+- Mobile-ready packaging via Capacitor for Android.
+
+## Product Features
+
+### Authentication and Access Control
+- Email/password login and Google OAuth login via Supabase Auth.
+- Global route protection in server hooks.
+- Role-based entry flow:
+	- After login, users land on panel routing.
+	- Worker accounts are redirected to employee pages.
+	- Non-worker accounts are redirected to client pages.
+- Root path redirects to login screen.
+
+### Client Experience
+- Daily menu with availability filtering based on product stock.
+- Cart-based multi-order placement with planned pickup time slots.
+- Automatic stock decrement for recipe ingredients after order placement.
+- Auto-suggested product restock entries when inventory drops below threshold.
+- Personalized dish recommendations from order history, time patterns, and weather context.
+- Active and past order views.
+- QR code generation for completed order pickup confirmation.
+
+### Employee Experience
+- Dashboard with claimed orders overview.
+- Unclaimed orders list with required product breakdown.
+- QR scanner page for pickup verification (camera + manual URL fallback).
+- Personal stats page with chart visualization of completed workload over time.
+- Operational sections for dishes, products, supplies, scanning, and settings.
+
+### Shared Features
+- Real-time invalidation on database changes using Supabase Realtime channels.
+- Theme persistence (light/dark).
+- Contact page with map and email sending API.
+- Responsive UI optimized for desktop and mobile.
+
+## Technical Stack
+
+- Frontend: Svelte 5, SvelteKit 2, Tailwind CSS 4
+- Backend: SvelteKit server routes + actions
+- Database and Auth: Supabase (PostgreSQL + Auth + Realtime)
+- Charts: Chart.js
+- Maps: Leaflet + OpenStreetMap
+- Email: Nodemailer
+- QR: qrcode for generation, jsqr for scanning
+- Mobile: Capacitor Android
+- Language: TypeScript
+
+## Architecture Overview
+
+### Routing and Security
+- Server hook initializes Supabase SSR client and enforces authenticated access to protected routes.
+- Authentication callback exchanges OAuth code for session and redirects to panel.
+- Panel route resolves role and redirects to appropriate section.
+
+### Domain Logic Highlights
+- Cart checkout validates stock before writing orders.
+- Each ordered dish decrements linked product quantities.
+- Low stock can trigger supply suggestion records.
+- Pickup verification uses HMAC-signed token payloads.
+- Realtime subscription invalidates stale server data automatically.
+
+### Code Organization
+- src/routes: route-level UI and server logic.
+- src/lib: shared client/server utilities and stores.
+- src/functions: reusable Supabase and utility helper functions.
+- supabase/migrations: SQL migration history.
+
+## Key Files to Review
+
+- src/hooks.server.ts: auth/session handling and protected route guard.
+- src/routes/panel/+page.server.ts: role-based redirect entrypoint.
+- src/routes/client/cart/+page.server.ts: order placement and stock mutation logic.
+- src/routes/client/+page.server.ts: recommendations and pickup QR token flow.
+- src/lib/orderTicketToken.ts: signed order ticket creation and verification.
+- src/routes/employee/scan/+page.svelte: QR scan UX and verification pipeline.
+
+## Local Development
+
+### 1. Prerequisites
+- Node.js 20+
+- npm
+- Supabase project (hosted or local)
+
+### 2. Install dependencies
+
+```bash
+npm install
 ```
 
-To recreate this project with the same configuration:
+### 3. Configure environment variables
 
-```sh
-# recreate this project
-npx sv create --template minimal --types ts --add prettier tailwindcss="plugins:typography,forms" sveltekit-adapter="adapter:auto" --install npm codingSvelte2
+Create a .env file in the project root with values similar to:
+
+```env
+PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-anon-key
+
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-email-app-password
+
+ORDER_PICKUP_SECRET=change-this-to-a-long-random-secret
 ```
 
-## Developing
+Notes:
+- ORDER_PICKUP_SECRET must be at least 16 characters to enable pickup QR signing.
+- For Google OAuth, configure redirect URL to /auth/callback in Supabase Auth settings.
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+### 4. Run the app
 
-```sh
+```bash
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+App starts in development mode and redirects unauthenticated users to login.
 
-To create a production version of your app:
+## Available Scripts
 
-```sh
-npm run build
-```
+- npm run dev: Start dev server.
+- npm run build: Build production bundle.
+- npm run preview: Preview production build locally.
+- npm run check: Run Svelte type checks.
+- npm run check:watch: Run checks in watch mode.
+- npm run lint: Prettier validation.
+- npm run format: Prettier formatting.
+- npm run cap:sync: Sync web build with Capacitor Android project.
+- npm run cap:open: Open Android project in Android Studio.
+- npm run cap:run: Build and run on Android target.
 
-You can preview the production build with `npm run preview`.
+## Mobile (Android)
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+Capacitor integration is already included. Typical flow:
+1. Build web assets.
+2. Run capacitor sync.
+3. Open or run Android project.
 
+This allows camera/QR workflows to run in a native wrapper where browser camera constraints are less limiting.
 
-## Things to add
+## Engineering Practices Demonstrated
 
-Definitely chatling but also own chatbot, give it dataset to know where things are and stuff like that
+- Separation of concerns between route UI, server load/actions, and shared helpers.
+- Defensive server-side validation before database mutations.
+- Progressive enhancement for forms.
+- Graceful fallback UX (manual pickup URL when camera unavailable).
+- Reusable typed helper functions for Supabase nested data handling.
 
+## Known Limitations / Next Improvements
 
-Install: npm install -g ngrok
-Run your dev server: npm run dev
-In another terminal: npx ngrok http 5173 (or whatever port SvelteKit is using) + --host-header=rewrite (można)
-It works like shit (only use for chatling to learn)
+- Add automated tests (unit + integration + e2e).
+- Add stricter DB transactions around multi-step stock updates.
+- Add observability and structured error reporting.
+- Improve claim order workflow currently partly disabled in UI.
+- Add CI pipeline with lint/type/test gates.
 
+## Project Status
 
-## To use on mobile 
-```
-npm run dev -- --host
-npm run cap:sync
-npm run cap:run
-```
-(jak nie działa ale powinno)
+Active prototype with substantial production-oriented patterns and room for hardening.
 
-
-Change	                                Action needed
-Svelte pages, CSS, server logic	        Nothing — auto-updates
-capacitor.config.ts	                    npm run cap:sync + reinstall
-New Capacitor plugin	                npm run cap:sync + reinstall
-Android manifest / native code	        npm run cap:sync + reinstall
-
-
-
-
-
-## Functions
-File	                Functions	                                    Purpose / Cel
-
-selectRows.ts	        selectRows	                                    Fetch multiple rows with sort/filter/limit — SELECT *
-
-selectById.ts	        selectById	                                    Fetch a single row by ID — SELECT WHERE id=X
-
-selectWithJoin.ts	    selectWithJoin	                                Fetch rows with related data from another table (JOIN)
-
-insertRow.ts	        insertRow, insertMultipleRows	                Insert one or many rows — INSERT
-
-updateRow.ts	        updateRow, updateMultipleRows	                Update one or many rows — UPDATE
-
-deleteRow.ts	        deleteRow, deleteMultipleRows	                Delete one or many rows — DELETE
-
-upsertRow.ts	        upsertRow	                                    Insert-or-update (UPSERT)
-
-toggleField.ts	        toggleField	                                    Toggle a 0/1 or boolean field (like czy_na_bocznicy)
-
-countRows.ts	        countRows	                                    Efficiently count rows (with optional filter)
-
-paginateRows.ts	        paginateRows	                                Page-by-page data fetching with total count
-
-searchRows.ts	        searchRows, searchRowsMultiColumn	            ILIKE text search in one or multiple columns
-
-rpcCall.ts	            rpcCall	                                        Call PostgreSQL database functions (RPC)
-
-authHelpers.ts	        signInWithEmail, signUpWithEmail, 
-                        signInWithOAuth, signOut, 
-                        getCurrentUser, getUserDisplayName, 
-                        requireAuth	                                    All authentication patterns
-
-validateFormData.ts	    extractFormFields, extractFormNumber, 
-                        extractOptionalFields	                        Extract and validate form data in server actions
-
-serverActionHelpers.ts	loadTableData, handleCreateAction,              Ready-to-use server action handlers for common CRUD patterns
-                        handleToggleAction, handleDeleteAction	
-
-sendEmail.ts	        sendEmail, sendEmailFromContactForm	            Send emails via the API endpoint
-
-storageUpload.ts	    uploadFile, getSignedUrl, deleteFile	        Supabase Storage file operations
-
-realtimeSubscribe.ts	subscribeToTable, subscribeToRow	            Real-time subscriptions to database changes
-
-index.ts	            —	                                            Re-exports everything for easy imports
-
-
-Istnieje 
-```
-    import { selectRows, insertRow } from '$functions';
-``` 
-do używania tych funckji
-
-
-## W supabase > authentication > URL > Site URL jakieś dzikie rzeczy się dzieją jak by nie działało to zmienić na http://localhost:5173
-
-## TO DO: graf z ilością userów dziennych (jak ktoś zrobi post to + 1 chyba że już wcześniej tego dnia zrobił)
-
-## Docker
-```
-# View running containers
-docker compose ps
-
-# View logs
-docker compose logs -f
-
-# Stop all services
-docker compose down
-
-# Stop and remove all data (⚠️ destructive)
-docker compose down -v
-
-# Restart specific service
-docker compose restart studio
-```
-
-
-
-
-╭──────────────────────────────────────╮
-│ 🔧 Development Tools                 │
-├─────────┬────────────────────────────┤
-│ Studio  │ http://127.0.0.1:54323     │
-│ Mailpit │ http://127.0.0.1:54324     │
-│ MCP     │ http://127.0.0.1:54321/mcp │
-╰─────────┴────────────────────────────╯
-
-╭──────────────────────────────────────────────────────╮
-│ 🌐 APIs                                              │
-├────────────────┬─────────────────────────────────────┤
-│ Project URL    │ http://127.0.0.1:54321              │
-│ REST           │ http://127.0.0.1:54321/rest/v1      │
-│ GraphQL        │ http://127.0.0.1:54321/graphql/v1   │
-│ Edge Functions │ http://127.0.0.1:54321/functions/v1 │
-╰────────────────┴─────────────────────────────────────╯
-
-╭───────────────────────────────────────────────────────────────╮
-│ ⛁ Database                                                    │
-├─────┬─────────────────────────────────────────────────────────┤
-│ URL │ postgresql://postgres:postgres@127.0.0.1:54322/postgres │
-╰─────┴─────────────────────────────────────────────────────────╯
-
-╭──────────────────────────────────────────────────────────────╮
-│ 🔑 Authentication Keys                                       │
-├─────────────┬────────────────────────────────────────────────┤
-│ Publishable │ sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH │
-│ Secret      │ sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz      │
-╰─────────────┴────────────────────────────────────────────────╯
-
-╭───────────────────────────────────────────────────────────────────────────────╮
-│ 📦 Storage (S3)                                                               │
-├────────────┬──────────────────────────────────────────────────────────────────┤
-│ URL        │ http://127.0.0.1:54321/storage/v1/s3                             │
-│ Access Key │ 625729a08b95bf1b7ff351a663f3a23c                                 │
-│ Secret Key │ 850181e4652dd023b7a98c58ae0d2d34bd487ee0cc3254aed6eda37307425907 │
-│ Region     │ local                                                            │
-╰────────────┴──────────────────────────────────────────────────────────────────╯
-```
-docker rm -f supabase_vector_codingSvelte2
-```

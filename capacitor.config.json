@@ -1,0 +1,9 @@
+{
+  "appId": "com.codingSvelte.app",
+  "appName": "codingsvelte2",
+  "webDir": "build",
+  "server": {
+    "url": "https://jonathan-unscribed-structurally.ngrok-free.dev",
+    "cleartext": true
+  }
+}

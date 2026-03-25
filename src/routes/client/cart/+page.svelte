@@ -41,6 +41,7 @@
 		return `${yyyy}-${mm}-${dd}`;
 	}
 
+	/** Local wall time for the chosen date + slot (no bogus +1 hour). */
 	function buildPickupDatetime(dateStr: string, slot: { h: number; m: number }): string {
 		return `${dateStr}T${String(slot.h).padStart(2, '0')}:${String(slot.m).padStart(2, '0')}`;
 	}

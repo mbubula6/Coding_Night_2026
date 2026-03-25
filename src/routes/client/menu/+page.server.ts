@@ -8,7 +8,7 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 
     const { data, error } = await locals.supabase
         .from('dish')
-        .select('id, name, prep_time_minutes, link_dish_recipe(product(name))')
+        .select('id, name, prep_time_minutes, link_dish_recipe(product(id, name, quantity))')
         .order('name', { ascending: true });
 
     if (error) {
@@ -21,14 +21,27 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
         };
     }
 
-    const dishes = (data ?? []).map((d: any) => ({
-        id: d.id as number,
-        name: (d.name ?? '—') as string,
-        prep_time_minutes: d.prep_time_minutes as number | null,
-        products: ((d.link_dish_recipe ?? []) as any[])
+    const allDishes = (data ?? []).map((d: any) => {
+        const links = ((d.link_dish_recipe ?? []) as any[]);
+        const products = links
             .map((lr: any) => lr.product?.name as string | undefined)
-            .filter((n): n is string => Boolean(n))
-    }));
+            .filter((n): n is string => Boolean(n));
+        const quantities = links.map(
+            (lr: any) => lr.product?.quantity != null ? Number(lr.product.quantity) : 0
+        );
+        const max_orderable = quantities.length > 0 ? Math.min(...quantities) : 0;
+        const available = max_orderable > 0;
+        return {
+            id: d.id as number,
+            name: (d.name ?? '—') as string,
+            prep_time_minutes: d.prep_time_minutes as number | null,
+            products,
+            available,
+            max_orderable
+        };
+    });
+
+    const dishes = allDishes.filter((d) => d.available);
 
     const now = new Date();
     const y = now.getFullYear();
